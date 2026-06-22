@@ -1,628 +1,300 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Cüzdanım Ultra</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Cüzdanım">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .ios-blur { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-        ::-webkit-scrollbar { display: none; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-    </style>
-</head>
-<body class="bg-gray-50 text-gray-900 antialiased select-none pb-28">
+import Foundation
 
-    <div class="sticky top-0 z-40 ios-blur border-b border-gray-100 pt-10 pb-3">
-        <div class="px-6 flex justify-between items-center mb-3">
-            <h1 class="text-2xl font-bold tracking-tight" id="app-title">Cüzdanım</h1>
-            <span class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full font-semibold">Premium</span>
-        </div>
-        
-        <div class="flex justify-between items-center px-6" id="month-selector-container">
-            <button onclick="changeMonth(-1)" class="p-2 bg-gray-100 rounded-full text-gray-600 active:bg-gray-200 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
-            </button>
-            <h2 id="month-display" class="text-xs font-bold uppercase tracking-widest text-indigo-600">HAZİRAN 2026</h2>
-            <button onclick="changeMonth(1)" class="p-2 bg-gray-100 rounded-full text-gray-600 active:bg-gray-200 transition">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-            </button>
-        </div>
-    </div>
+// İşlem Tipleri
+enum IslemTipi: String, CaseIterable {
+    case gelir = "Gelirler"
+    case gider = "Giderler"
+    case alacak = "Alacaklar"
+    case borc = "Borçlar"
+}
 
-    <div id="tab-home" class="tab-content active max-w-md mx-auto px-4 mt-4 space-y-6">
-        <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
-            <div class="absolute -right-10 -bottom-10 w-40 h-40 bg-indigo-500 rounded-full opacity-20 blur-2xl"></div>
-            <p class="text-xs text-indigo-200 font-medium uppercase tracking-wider">Net Toplam Varlık</p>
-            <h2 class="text-4xl font-bold mt-1 tracking-tight" id="total-balance">0.00 ₺</h2>
-            
-            <div class="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-800">
-                <div>
-                    <p class="text-xs text-emerald-300 flex items-center gap-1 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Aylık Gelir</p>
-                    <p class="text-base font-semibold mt-0.5 text-emerald-50" id="month-income">0.00 ₺</p>
-                </div>
-                <div>
-                    <p class="text-xs text-rose-300 flex items-center gap-1 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Aylık Gider</p>
-                    <p class="text-base font-semibold mt-0.5 text-rose-50" id="month-expense">0.00 ₺</p>
-                </div>
-            </div>
-        </div>
+// Finansal İşlem Modeli
+struct Islem: Identifiable {
+    let id = UUID()
+    var tip: IslemTipi
+    var kategori: String
+    var tarih: Date
+    var tutar: Double
+    var aciklama: String
+    var tekrarla: Bool = false
+}
 
-        <div class="space-y-2">
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Hesaplarım</h3>
-            <div class="grid grid-cols-3 gap-2.5">
-                <div class="bg-white border border-gray-100 rounded-2xl p-3.5 shadow-sm">
-                    <p class="text-[11px] text-gray-400 font-medium mb-0.5">💼 Nakit</p>
-                    <p class="font-bold text-gray-800 text-xs truncate" id="acc-cash">0.00 ₺</p>
-                </div>
-                <div class="bg-white border border-gray-100 rounded-2xl p-3.5 shadow-sm">
-                    <p class="text-[11px] text-gray-400 font-medium mb-0.5">🏦 Banka</p>
-                    <p class="font-bold text-gray-800 text-xs truncate" id="acc-bank">0.00 ₺</p>
-                </div>
-                <div class="bg-white border border-gray-100 rounded-2xl p-3.5 shadow-sm">
-                    <p class="text-[11px] text-gray-400 font-medium mb-0.5">💳 K. Kartı</p>
-                    <p class="font-bold text-rose-600 text-xs truncate" id="acc-credit">0.00 ₺</p>
-                </div>
-            </div>
-        </div>
+// Örnek Veriler (Ekran görüntülerindeki gibi)
+class FinansYonetici: ObservableObject {
+    @Published var islemler: [Islem] = [
+        Islem(tip: .gider, kategori: "Telefon Faturası", tarih: Date(), tutar: 56.80, aciklama: ""),
+        Islem(tip: .alacak, kategori: "Bonus", tarih: Date(), tutar: 1000.00, aciklama: "Haziran satış bonusu"),
+        Islem(tip: .gider, kategori: "Market Alışverişi", tarih: Date(), tutar: 408.80, aciklama: "Çay, kahve vb.")
+    ]
+    
+    // Kasa hesaplamaları
+    var toplamGelir: Double { islemler.filter { $0.tip == .gelir }.reduce(0) { $0 + $1.tutar } }
+    var toplamGider: Double { islemler.filter { $0.tip == .gider }.reduce(0) { $0 + $1.tutar } }
+    var netDurum: Double { toplamGelir - toplamGider }
+    var kasa: Double { netDurum } // Mevcut kasa
+}
+import SwiftUI
 
-        <div class="space-y-3">
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Bu Ayın İşlemleri</h3>
-            <div class="space-y-2.5" id="transaction-list"></div>
-        </div>
-    </div>
-
-    <div id="tab-analysis" class="tab-content max-w-md mx-auto px-4 mt-4 space-y-6">
-        <div class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
-            <input type="text" id="search-input" oninput="updateAnalysisUI()" placeholder="İşlem veya not ara..." class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:border-indigo-500">
-            <div class="grid grid-cols-2 gap-2">
-                <select id="filter-account" onchange="updateAnalysisUI()" class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs text-gray-600 focus:outline-none">
-                    <option value="ALL">Tüm Hesaplar</option>
-                    <option value="Nakit">💼 Nakit</option>
-                    <option value="Banka">🏦 Banka</option>
-                    <option value="Kredi Kartı">💳 Kredi Kartı</option>
-                </select>
-                <select id="filter-type" onchange="updateAnalysisUI()" class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs text-gray-600 focus:outline-none">
-                    <option value="ALL">Tüm Türler</option>
-                    <option value="expense">Sadece Giderler</option>
-                    <option value="income">Sadece Gelirler</option>
-                    <option value="transfer">Sadece Transferler</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Kategori Harcamaları & Bütçe Durumu</h3>
-            <div id="analysis-category-bars" class="space-y-4"></div>
-        </div>
-    </div>
-
-    <div id="tab-manage" class="tab-content max-w-md mx-auto px-4 mt-4 space-y-6">
-        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
-            <h3 class="text-sm font-bold text-gray-800">Kategori ve Bütçe Limiti Ekle</h3>
-            <div class="space-y-2">
-                <input type="text" id="new-cat-name" placeholder="Örn: 🍿 Sinema & Kültür" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none">
-                <div class="grid grid-cols-2 gap-2">
-                    <select id="new-cat-type" class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none">
-                        <option value="expense">Gider Kategorisi</option>
-                        <option value="income">Gelir Kategorisi</option>
-                    </select>
-                    <input type="number" id="new-cat-budget" placeholder="Aylık Limit (₺)" class="bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none">
-                </div>
-                <button onclick="addNewCategory()" class="w-full bg-indigo-600 text-white p-2.5 rounded-xl font-semibold text-xs shadow-sm active:bg-indigo-700">Kategoriyi Kaydet</button>
-            </div>
-            <div class="pt-2 border-t border-gray-50 max-h-40 overflow-y-auto space-y-1.5" id="manage-category-list"></div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
-            <h3 class="text-sm font-bold text-gray-800">Hesaplar Arası Virman / Transfer</h3>
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Kaynak</label>
-                    <select id="trans-from" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none">
-                        <option value="Nakit">Nakit</option>
-                        <option value="Banka">Banka Hesabı</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Hedef</label>
-                    <select id="trans-to" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none">
-                        <option value="Banka">Banka Hesabı</option>
-                        <option value="Nakit">Nakit</option>
-                        <option value="Kredi Kartı">Kredi Kartı Ödemesi</option>
-                    </select>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 items-end">
-                <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase">Miktar (₺)</label>
-                    <input type="number" id="trans-amount" placeholder="0.00" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs focus:outline-none">
-                </div>
-                <button onclick="executeTransfer()" class="bg-slate-800 text-white p-2.5 rounded-xl font-semibold text-xs active:bg-slate-900 h-[38px]">Transferi Yap</button>
-            </div>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
-            <h3 class="text-sm font-bold text-gray-800">Veri Güvenliği & Yedekleme</h3>
-            <p class="text-xs text-gray-400">Verileriniz tamamen telefonunuzdadır. Telefon değiştirirken yedek alıp yükleyebilirsiniz.</p>
-            <div class="grid grid-cols-2 gap-2 pt-1">
-                <button onclick="backupData()" class="bg-emerald-600 text-white p-3 rounded-xl font-semibold text-xs shadow-sm active:bg-emerald-700">Yedek Dosyası İndir</button>
-                <label class="bg-amber-600 text-white p-3 rounded-xl font-semibold text-xs shadow-sm active:bg-amber-700 text-center cursor-pointer">
-                    Yedek Yükle
-                    <input type="file" id="import-file" onchange="restoreData(event)" class="hidden">
-                </label>
-            </div>
-            <button onclick="clearSystem()" class="w-full bg-rose-50 text-rose-600 p-2.5 rounded-xl font-medium text-xs active:bg-rose-100 transition">Tüm Uygulamayı Sıfırla</button>
-        </div>
-    </div>
-
-    <button id="fab-button" onclick="openModal()" class="fixed bottom-20 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-xl shadow-indigo-200 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform z-40">
-        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-    </button>
-
-    <div class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 flex justify-around py-3 z-40 shadow-lg">
-        <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-1 text-indigo-600 transition">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-            <span class="text-[10px] font-medium">Cüzdanım</span>
-        </button>
-        <button onclick="switchTab('analysis')" id="nav-analysis" class="flex flex-col items-center gap-1 text-gray-400 transition">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0h6m2 0h2a2 2 0 002-2v-4a2 2 0 00-2-2h-2a2 2 0 00-2 2v4a2 2 0 002 2z"/></svg>
-            <span class="text-[10px] font-medium">Analiz</span>
-        </button>
-        <button onclick="switchTab('manage')" id="nav-manage" class="flex flex-col items-center gap-1 text-gray-400 transition">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
-            <span class="text-[10px] font-medium">Yönetim</span>
-        </button>
-    </div>
-
-    <div id="modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-end justify-center">
-        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
-            <div class="flex justify-between items-center border-b border-gray-100 pb-2">
-                <h3 class="text-base font-bold">Yeni Kayıt</h3>
-                <button onclick="closeModal()" class="text-gray-400 text-sm font-medium p-1">İptal</button>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-2 bg-gray-100 p-1 rounded-xl">
-                <button onclick="setType('expense')" id="type-expense" class="py-2 text-xs font-bold rounded-lg bg-white text-rose-600 shadow-sm">Gider</button>
-                <button onclick="setType('income')" id="type-income" class="py-2 text-xs font-bold rounded-lg text-gray-500">Gelir</button>
-            </div>
-
-            <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tutar (₺)</label>
-                <input type="number" id="amount" placeholder="0.00" inputmode="decimal" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-lg font-bold focus:outline-none focus:border-indigo-500">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Hesap</label>
-                    <select id="account" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none">
-                        <option value="Nakit">💼 Nakit</option>
-                        <option value="Banka">🏦 Banka Hesabı</option>
-                        <option value="Kredi Kartı">💳 Kredi Kartı</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tarih</label>
-                    <input type="date" id="date" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Kategori</label>
-                <select id="category" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none"></select>
-            </div>
-
-            <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Açıklama / Not</label>
-                <input type="text" id="description" placeholder="Örn: Hafta sonu yemeği" class="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs focus:outline-none">
-            </div>
-
-            <button onclick="saveTransaction()" class="w-full bg-indigo-600 text-white p-3.5 rounded-xl font-bold shadow-md active:bg-indigo-700 transition text-sm">Kaydet</button>
-        </div>
-    </div>
-
-    <script>
-        // Varsayılan Kategoriler ve Limitleri
-        const defaultCategories = [
-            { name: "🛒 Mutfak & Market", type: "expense", budget: 3000 },
-            { name: "🏠 Fatura & Kira", type: "expense", budget: 10000 },
-            { name: "🍔 Eğlence & Dışarı", type: "expense", budget: 2000 },
-            { name: "🚗 Ulaşım & Yakıt", type: "expense", budget: 1500 },
-            { name: "🛍️ Giyim & Alışveriş", type: "expense", budget: 2500 },
-            { name: "💰 Maaş & Gelir", type: "income", budget: 0 },
-            { name: "📈 Ek Gelir / Borç", type: "income", budget: 0 }
-        ];
-
-        let transactions = JSON.parse(localStorage.getItem('cuzdan_v4_transactions')) || [];
-        let categories = JSON.parse(localStorage.getItem('cuzdan_v4_categories')) || defaultCategories;
-        let currentType = 'expense';
-        let viewDate = new Date();
-        
-        document.getElementById('date').valueAsDate = new Date();
-
-        function init() {
-            renderMonthDisplay();
-            renderCategoryOptions();
-            updateUI();
-        }
-
-        // Sekme Değiştirici
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabId).classList.add('active');
-
-            // Aktif tab rengini güncelle
-            const tabs = ['home', 'analysis', 'manage'];
-            tabs.forEach(t => {
-                const btn = document.getElementById('nav-' + t);
-                if(t === tabId) btn.className = "flex flex-col items-center gap-1 text-indigo-600 transition";
-                else btn.className = "flex flex-col items-center gap-1 text-gray-400 transition";
-            });
-
-            // Başlığı ve Ay seçiciyi yönet
-            if(tabId === 'manage') {
-                document.getElementById('app-title').innerText = "Yönetim";
-                document.getElementById('month-selector-container').style.opacity = '0';
-                document.getElementById('month-selector-container').style.pointerEvents = 'none';
-                document.getElementById('fab-button').classList.add('hidden');
-                renderManageCategories();
-            } else {
-                document.getElementById('app-title').innerText = tabId === 'home' ? "Cüzdanım" : "Analiz & Arama";
-                document.getElementById('month-selector-container').style.opacity = '1';
-                document.getElementById('month-selector-container').style.pointerEvents = 'auto';
-                document.getElementById('fab-button').classList.remove('hidden');
-                if(tabId === 'analysis') updateAnalysisUI();
-            }
-        }
-
-        function changeMonth(step) {
-            viewDate.setMonth(viewDate.getMonth() + step);
-            renderMonthDisplay();
-            updateUI();
-            if(document.getElementById('tab-analysis').classList.contains('active')) updateAnalysisUI();
-        }
-
-        function renderMonthDisplay() {
-            const months = ["OCAK", "ŞUBAT", "MART", "NİSAN", "MAYIS", "HAZİRAN", "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK"];
-            document.getElementById('month-display').innerText = `${months[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
-        }
-
-        function renderCategoryOptions() {
-            const select = document.getElementById('category');
-            select.innerHTML = '';
-            categories.forEach(cat => {
-                if(cat.type === currentType) {
-                    const opt = document.createElement('option');
-                    opt.value = cat.name;
-                    opt.innerText = cat.name;
-                    select.appendChild(opt);
+struct GenelBakisView: View {
+    @StateObject var yonetici = FinansYonetici()
+    @State private var seciliSekme: IslemTipi = .gider
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Üst Kasa Bildirimi (Yeşil Alan)
+                HStack {
+                    Image(systemName: "folder.fill")
+                        .foregroundColor(.white)
+                    Text("Kasa: ₺2.270,95") // Dinamik yapılabilir: \(yonetici.kasa)
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Spacer()
                 }
-            });
-        }
-
-        function openModal() { document.getElementById('modal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-
-        function setType(type) {
-            currentType = type;
-            const expBtn = document.getElementById('type-expense');
-            const incBtn = document.getElementById('type-income');
-            
-            if(type === 'expense') {
-                expBtn.className = "py-2 text-xs font-bold rounded-lg bg-white text-rose-600 shadow-sm";
-                incBtn.className = "py-2 text-xs font-bold rounded-lg text-gray-500";
-            } else {
-                incBtn.className = "py-2 text-xs font-bold rounded-lg bg-white text-emerald-600 shadow-sm";
-                expBtn.className = "py-2 text-xs font-bold rounded-lg text-gray-500";
-            }
-            renderCategoryOptions();
-        }
-
-        // Normal Gelir/Gider Kaydı
-        function saveTransaction() {
-            const amount = parseFloat(document.getElementById('amount').value);
-            const category = document.getElementById('category').value;
-            const description = document.getElementById('description').value || category;
-            const account = document.getElementById('account').value;
-            const dateVal = document.getElementById('date').value;
-
-            if(!amount || amount <= 0) return alert('Lütfen tutar girin.');
-
-            transactions.push({
-                id: Date.now(),
-                type: currentType,
-                amount: amount,
-                category: category,
-                account: account,
-                description: description,
-                date: dateVal || new Date().toISOString().split('T')[0]
-            });
-
-            saveAndReload();
-            document.getElementById('amount').value = '';
-            document.getElementById('description').value = '';
-            closeModal();
-        }
-
-        // Hesaplar Arası Transfer (Hesap Kitap Özel Özelliği)
-        function executeTransfer() {
-            const from = document.getElementById('trans-from').value;
-            const to = document.getElementById('trans-to').value;
-            const amount = parseFloat(document.getElementById('trans-amount').value);
-
-            if(from === to) return alert('Aynı hesaba transfer yapamazsınız.');
-            if(!amount || amount <= 0) return alert('Geçerli bir miktar girin.');
-
-            const nowStr = new Date().toISOString().split('T')[0];
-            const transferId = Date.now();
-
-            // Parayı Kaynaktan Çıkar
-            transactions.push({
-                id: transferId,
-                type: 'transfer',
-                amount: amount,
-                category: "🔄 Hesaplar Arası Transfer",
-                account: from,
-                description: `${to} hesabına transfer`,
-                date: nowStr
-            });
-
-            // Parayı Hedefe Ekle
-            transactions.push({
-                id: transferId + 1,
-                type: 'income', // Gelen para olarak işlenir
-                amount: amount,
-                category: "🔄 Hesaplar Arası Transfer",
-                account: to,
-                description: `${from} hesabından gelen`,
-                date: nowStr
-            });
-
-            document.getElementById('trans-amount').value = '';
-            saveAndReload();
-            alert('Transfer başarıyla gerçekleştirildi.');
-        }
-
-        function deleteTransaction(id) {
-            if(confirm('Bu işlemi silmek istediğinize emin misiniz?')) {
-                // Eğer transfer ise ikili silme yapabiliriz, basitleştirmek için id filtresi:
-                transactions = transactions.filter(t => t.id !== id);
-                saveAndReload();
-            }
-        }
-
-        function addNewCategory() {
-            const name = document.getElementById('new-cat-name').value.trim();
-            const type = document.getElementById('new-cat-type').value;
-            const budget = parseFloat(document.getElementById('new-cat-budget').value) || 0;
-
-            if(!name) return alert('Kategori adı yazın.');
-            
-            categories.push({ name, type, budget });
-            localStorage.setItem('cuzdan_v4_categories', JSON.stringify(categories));
-            
-            document.getElementById('new-cat-name').value = '';
-            document.getElementById('new-cat-budget').value = '';
-            renderCategoryOptions();
-            renderManageCategories();
-        }
-
-        function deleteCategory(name) {
-            if(confirm(`"${name}" kategorisini silmek istiyor musunuz?`)) {
-                categories = categories.filter(c => c.name !== name);
-                localStorage.setItem('cuzdan_v4_categories', JSON.stringify(categories));
-                renderCategoryOptions();
-                renderManageCategories();
-            }
-        }
-
-        function saveAndReload() {
-            transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-            localStorage.setItem('cuzdan_v4_transactions', JSON.stringify(transactions));
-            updateUI();
-        }
-
-        function updateUI() {
-            // GENEL NET VARLIK HESAPLAMA
-            let cash = 0, bank = 0, credit = 0;
-            transactions.forEach(t => {
-                let val = (t.type === 'income') ? t.amount : -t.amount;
-                if(t.account === 'Nakit') cash += val;
-                if(t.account === 'Banka') bank += val;
-                if(t.account === 'Kredi Kartı') credit += val;
-            });
-
-            document.getElementById('acc-cash').innerText = `${cash.toFixed(2)} ₺`;
-            document.getElementById('acc-bank').innerText = `${bank.toFixed(2)} ₺`;
-            document.getElementById('acc-credit').innerText = `${credit.toFixed(2)} ₺`;
-            document.getElementById('total-balance').innerText = `${(cash + bank + credit).toFixed(2)} ₺`;
-
-            // AYLIK FİLTRELEME VE LİSTELEME
-            const list = document.getElementById('transaction-list');
-            list.innerHTML = '';
-            let mIncome = 0, mExpense = 0;
-
-            const tMonth = viewDate.getMonth();
-            const tYear = viewDate.getFullYear();
-
-            transactions.forEach(t => {
-                const d = new Date(t.date);
-                if(d.getMonth() === tMonth && d.getFullYear() === tYear) {
-                    if(t.type === 'income') mIncome += t.amount;
-                    if(t.type === 'expense') mExpense += t.amount;
-                    if(t.type === 'transfer') mExpense += t.amount; // Transfer de hesaptan çıkan paradır
-
-                    const isInc = t.type === 'income';
-                    const dateStr = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-
-                    const item = document.createElement('div');
-                    item.className = "bg-white border border-gray-100 rounded-2xl p-4 flex justify-between items-center shadow-sm";
-                    item.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <div class="p-2 bg-gray-50 rounded-xl text-xs">${t.category.substring(0,2)}</div>
-                            <div>
-                                <p class="font-semibold text-xs text-gray-800">${t.description}</p>
-                                <p class="text-[10px] text-gray-400">${dateStr} • ${t.account}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-xs ${isInc ? 'text-emerald-600' : 'text-gray-700'}">
-                                ${isInc ? '+' : '-'}${t.amount.toFixed(2)} ₺
-                            </span>
-                            <button onclick="deleteTransaction(${t.id})" class="text-gray-300 hover:text-rose-500 p-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-16v4M4 7h16"/></svg>
-                            </button>
-                        </div>
-                    `;
-                    list.appendChild(item);
-                }
-            });
-
-            if(list.children.length === 0) {
-                list.innerHTML = '<p class="text-center text-xs text-gray-400 py-6">Bu ay henüz bir işlem yok.</p>';
-            }
-
-            document.getElementById('month-income').innerText = `${mIncome.toFixed(2)} ₺`;
-            document.getElementById('month-expense').innerText = `${mExpense.toFixed(2)} ₺`;
-        }
-
-        // GELİŞMİŞ ANALİZ, ARAMA VE BÜTÇE LİMİTLERİ (Sekme 2)
-        function updateAnalysisUI() {
-            const query = document.getElementById('search-input').value.toLowerCase();
-            const accFilter = document.getElementById('filter-account').value;
-            const typeFilter = document.getElementById('filter-type').value;
-            
-            const barContainer = document.getElementById('analysis-category-bars');
-            barContainer.innerHTML = '';
-
-            let categoryTotals = {};
-            const tMonth = viewDate.getMonth();
-            const tYear = viewDate.getFullYear();
-
-            // Verileri Filtrele ve Topla
-            transactions.forEach(t => {
-                const d = new Date(t.date);
-                if(d.getMonth() === tMonth && d.getFullYear() === tYear) {
-                    const matchesSearch = t.description.toLowerCase().includes(query) || t.category.toLowerCase().includes(query);
-                    const matchesAcc = (accFilter === 'ALL' || t.account === accFilter);
-                    const matchesType = (typeFilter === 'ALL' || t.type === typeFilter);
-
-                    if(matchesSearch && matchesAcc && matchesType) {
-                        if(t.type === 'expense' || t.type === 'transfer') {
-                            categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+                .padding()
+                .background(Color.green)
+                
+                // Ay Seçici ve Özet Kartı
+                VStack {
+                    Button(action: {}) {
+                        HStack {
+                            Image(systemName: "calendar")
+                            Text("Bu Ay (Temmuz 2020)")
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.top, 10)
+                    }
+                    
+                    // Özet Rakamları
+                    HStack(alignment: .top) {
+                        VStack {
+                            Text("Gelirler").font(.caption).foregroundColor(.gray)
+                            Text("₺4.150,00").font(.subheadline).bold()
+                        }
+                        Spacer()
+                        VStack {
+                            Text("Giderler").font(.caption).foregroundColor(.gray)
+                            Text("₺1.879,05").font(.subheadline).bold()
+                        }
+                        Spacer()
+                        VStack {
+                            Text("Net").font(.caption).foregroundColor(.gray)
+                            Text("₺2.270,95").font(.subheadline).bold().foregroundColor(.green)
                         }
                     }
-                }
-            });
-
-            // Arayüze Bütçe Barları Ekleme (Limit Aşımı Kontrollü)
-            categories.forEach(cat => {
-                if(cat.type === 'expense') {
-                    const spent = categoryTotals[cat.name] || 0;
-                    if(spent === 0 && query !== '') return; // Arama yapılıyorsa boşları gösterme
-
-                    const budget = cat.budget;
-                    let percentage = budget > 0 ? (spent / budget) * 100 : 0;
-                    if(percentage > 100) percentage = 100;
-
-                    // Eğer bütçe aşılmışsa bar rengini kırmızı yap
-                    const isOverBudget = budget > 0 && spent > budget;
-                    const barColor = isOverBudget ? 'bg-rose-500' : 'bg-indigo-600';
-                    const budgetText = budget > 0 ? `/ ${budget} ₺ limit` : '(Limit Yok)';
-
-                    const barBlock = document.createElement('div');
-                    barBlock.className = "space-y-1";
-                    barBlock.innerHTML = `
-                        <div class="flex justify-between text-xs font-medium">
-                            <span class="text-gray-700">${cat.name}</span>
-                            <span class="${isOverBudget ? 'text-rose-600 font-bold' : 'text-gray-500'}">
-                                ${spent.toFixed(2)} ₺ <span class="text-[10px] font-normal text-gray-400">${budgetText}</span>
-                            </span>
-                        </div>
-                        <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                            <div class="${barColor} h-full rounded-full transition-all" style="width: ${spent > 0 && budget == 0 ? '100' : percentage}%"></div>
-                        </div>
-                    `;
-                    barContainer.appendChild(barBlock);
-                }
-            });
-
-            if(barContainer.children.length === 0) {
-                barContainer.innerHTML = '<p class="text-center text-xs text-gray-400 py-2">Filtrelere uygun harcama bulunamadı.</p>';
-            }
-        }
-
-        // Kategori Yönetim Listesi (Sekme 3)
-        function renderManageCategories() {
-            const list = document.getElementById('manage-category-list');
-            list.innerHTML = '';
-            categories.forEach(cat => {
-                const div = document.createElement('div');
-                div.className = "flex justify-between items-center bg-gray-50 p-2 rounded-xl text-xs";
-                div.innerHTML = `
-                    <span class="font-medium">${cat.name} <span class="text-[10px] text-gray-400">(${cat.type === 'expense' ? 'Gider' : 'Gelir'})</span></span>
-                    <div class="flex items-center gap-3">
-                        <span class="text-gray-400">${cat.budget > 0 ? cat.budget + '₺' : ''}</span>
-                        <button onclick="deleteCategory('${cat.name}')" class="text-gray-300 hover:text-rose-500">Sil</button>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-        }
-
-        // VERİ YEDEKLERİNİ DIŞA/İÇE AKTARMA (JSON YEDEKLEME MANTIĞI)
-        function backupData() {
-            const dataToBackup = {
-                transactions: transactions,
-                categories: categories
-            };
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToBackup));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `Cuzdanim_Yedek_${new Date().toISOString().split('T')[0]}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        }
-
-        function restoreData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const importedData = JSON.parse(e.target.result);
-                    if(importedData.transactions && importedData.categories) {
-                        transactions = importedData.transactions;
-                        categories = importedData.categories;
-                        localStorage.setItem('cuzdan_v4_transactions', JSON.stringify(transactions));
-                        localStorage.setItem('cuzdan_v4_categories', JSON.stringify(categories));
-                        init();
-                        alert('Yedek başarıyla yüklendi, tüm veriler güncellendi!');
-                    } else {
-                        alert('Hatalı yedek dosyası formatı.');
+                    .padding(.horizontal)
+                    .padding(.top, 5)
+                    
+                    Divider()
+                    
+                    HStack {
+                        Spacer()
+                        VStack {
+                            Text("Alacaklar").font(.caption).foregroundColor(.gray)
+                            Text("₺1.000,00").font(.subheadline).bold()
+                        }
+                        Spacer()
+                        VStack {
+                            Text("Borçlar").font(.caption).foregroundColor(.gray)
+                            Text("₺56,80").font(.subheadline).bold()
+                        }
+                        Spacer()
                     }
-                } catch (err) {
-                    alert('Dosya okunurken bir hata oluştu.');
+                    .padding(.bottom, 10)
                 }
-            };
-            reader.readAsText(file);
+                .background(Color.white)
+                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
+                
+                // Sekmeler (Gelirler, Giderler, Alacaklar, Borçlar)
+                Picker("İşlem Tipi", selection: $seciliSekme) {
+                    ForEach(IslemTipi.allCases, id: \.self) { tip in
+                        Text(tip.rawValue).tag(tip)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding()
+                
+                // İşlem Listesi
+                List {
+                    ForEach(yonetici.islemler.filter { $0.tip == seciliSekme }) { islem in
+                        IslemSatiri(islem: islem)
+                    }
+                }
+                .listStyle(PlainListStyle())
+                
+                // Alt Ekleme Butonları (Yeşil ve Kırmızı)
+                HStack(spacing: 0) {
+                    NavigationLink(destination: IslemEkleView(tip: .gelir)) {
+                        Text("Gelir/Alacak Ekle")
+                            .frame(maxWidth: .infinity, maxHeight: 50)
+                            .background(Color.green)
+                            .foregroundColor(.white)
+                            .font(.headline)
+                    }
+                    NavigationLink(destination: IslemEkleView(tip: .gider)) {
+                        Text("Gider/Borç Ekle")
+                            .frame(maxWidth: .infinity, maxHeight: 50)
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .font(.headline)
+                    }
+                }
+            }
+            .navigationBarTitle("Genel Bakış", displayMode: .inline)
+            .navigationBarItems(leading: Image(systemName: "line.horizontal.3"), trailing: Image(systemName: "arrow.right.arrow.left"))
         }
+    }
+}
 
-        function clearSystem() {
-            if(confirm('DİKKAT: Tüm harcama geçmişiniz ve özel kategorileriniz tamamen silinecektir. Emin misiniz?')) {
-                localStorage.clear();
-                location.reload();
+// Listede görünen tekil satır görünümü
+struct IslemSatiri: View {
+    var islem: Islem
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text("15.07.2020") // Gerçekte: DateFormatter kullanılacak
+                    .font(.caption)
+                    .foregroundColor(.gray)
+                if !islem.aciklama.isEmpty {
+                    Text("Not: \(islem.aciklama)")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+            }
+            Spacer()
+            Text(islem.kategori)
+                .font(.subheadline)
+            Spacer()
+            VStack(alignment: .trailing) {
+                Text("₺\(String(format: "%.2f", islem.tutar))")
+                    .bold()
+                HStack(spacing: 15) {
+                    Image(systemName: "checkmark").foregroundColor(.green)
+                    Image(systemName: "square.and.pencil").foregroundColor(.blue)
+                    Image(systemName: "xmark.circle.fill").foregroundColor(.red)
+                }
             }
         }
+        .padding(.vertical, 5)
+    }
+}
+import SwiftUI
 
-        init();
-    </script>
-</body>
-</html>
+struct IslemEkleView: View {
+    @State var tip: IslemTipi
+    @State private var kategori: String = "Kategori seçiniz"
+    @State private var tarih = Date()
+    @State private var tutar: String = ""
+    @State private var aciklama: String = ""
+    @State private var tekrarla: Bool = false
+    
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        Form {
+            Section {
+                // Gelir / Alacak - Gider / Borç Seçici
+                Picker("Tip", selection: $tip) {
+                    if tip == .gelir || tip == .alacak {
+                        Text("Gelir").tag(IslemTipi.gelir)
+                        Text("Alacak").tag(IslemTipi.alacak)
+                    } else {
+                        Text("Gider").tag(IslemTipi.gider)
+                        Text("Borç").tag(IslemTipi.borc)
+                    }
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                
+                HStack {
+                    Text("Kategori")
+                    Spacer()
+                    Text(kategori).foregroundColor(.blue)
+                }
+                
+                DatePicker("Tarih", selection: $tarih, displayedComponents: .date)
+                
+                HStack {
+                    Text("Tutar")
+                    Spacer()
+                    TextField("0,00", text: $tutar)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                }
+                
+                HStack {
+                    Text("Açıklama")
+                    Spacer()
+                    TextField("İsteğe bağlı", text: $aciklama)
+                        .multilineTextAlignment(.trailing)
+                }
+                
+                Toggle(isOn: $tekrarla) {
+                    Text("\(tip.rawValue.dropLast())i her ay aynı gün tekrarla")
+                        .foregroundColor(.gray)
+                }
+            }
+        }
+        .navigationBarTitle("\(tip.rawValue.dropLast()) Ekle", displayMode: .inline)
+        .navigationBarItems(trailing: Button("Kaydet") {
+            // Veritabanına kaydetme kodu buraya gelecek
+            presentationMode.wrappedValue.dismiss()
+        })
+    }
+}
+import SwiftUI
+
+struct AyarlarView: View {
+    var body: some View {
+        NavigationView {
+            List {
+                NavigationLink(destination: Text("Kategoriler Ekranı")) {
+                    Label("Kategoriler", systemImage: "square.stack.3d.up.fill")
+                }
+                NavigationLink(destination: Text("Tüm İşlemler")) {
+                    Label("Tüm Gelir ve Giderler", systemImage: "hand.holding.usd.fill")
+                }
+                NavigationLink(destination: Text("Tüm Alacak ve Borçlar")) {
+                    Label("Tüm Alacak ve Borçlar", systemImage: "arrow.left.arrow.right.circle.fill")
+                }
+                NavigationLink(destination: YillikRaporView()) {
+                    Label("Yıllık Gelir-Gider Raporu", systemImage: "chart.bar.fill")
+                }
+                NavigationLink(destination: Text("Web Sitesi")) {
+                    Label("Web Sitemizi Ziyaret Edin", systemImage: "magnifyingglass.circle")
+                }
+            }
+            .navigationBarTitle("Ayarlar", displayMode: .inline)
+        }
+    }
+}
+
+struct YillikRaporView: View {
+    var body: some View {
+        List {
+            Section(header: Text("2020 Gelir Gider Dökümü").foregroundColor(.blue).frame(maxWidth: .infinity, alignment: .center)) {
+                
+                HStack {
+                    Text("Aylar").bold().frame(width: 80, alignment: .leading)
+                    Text("Gelirler").bold().frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("Giderler").bold().frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("Net").bold().frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .font(.caption)
+                
+                // Örnek bir ay (Temmuz)
+                HStack {
+                    Text("Temmuz")
+                        .frame(width: 80, alignment: .leading)
+                        .foregroundColor(.blue)
+                    Text("₺4.150,00").frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("₺1.879,05").frame(maxWidth: .infinity, alignment: .trailing)
+                    Text("₺2.270,95").frame(maxWidth: .infinity, alignment: .trailing).foregroundColor(.green)
+                }
+                .font(.subheadline)
+            }
+        }
+        .listStyle(GroupedListStyle())
+        .navigationBarTitle("Yıllık Raporlar", displayMode: .inline)
+    }
+}
