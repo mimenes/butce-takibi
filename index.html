@@ -1,6 +1,7 @@
+import SwiftUI
 import Foundation
 
-// İşlem Tipleri
+// MARK: - 1. VERİ MODELLERİ
 enum IslemTipi: String, CaseIterable {
     case gelir = "Gelirler"
     case gider = "Giderler"
@@ -8,7 +9,6 @@ enum IslemTipi: String, CaseIterable {
     case borc = "Borçlar"
 }
 
-// Finansal İşlem Modeli
 struct Islem: Identifiable {
     let id = UUID()
     var tip: IslemTipi
@@ -19,7 +19,6 @@ struct Islem: Identifiable {
     var tekrarla: Bool = false
 }
 
-// Örnek Veriler (Ekran görüntülerindeki gibi)
 class FinansYonetici: ObservableObject {
     @Published var islemler: [Islem] = [
         Islem(tip: .gider, kategori: "Telefon Faturası", tarih: Date(), tutar: 56.80, aciklama: ""),
@@ -27,14 +26,34 @@ class FinansYonetici: ObservableObject {
         Islem(tip: .gider, kategori: "Market Alışverişi", tarih: Date(), tutar: 408.80, aciklama: "Çay, kahve vb.")
     ]
     
-    // Kasa hesaplamaları
     var toplamGelir: Double { islemler.filter { $0.tip == .gelir }.reduce(0) { $0 + $1.tutar } }
     var toplamGider: Double { islemler.filter { $0.tip == .gider }.reduce(0) { $0 + $1.tutar } }
     var netDurum: Double { toplamGelir - toplamGider }
-    var kasa: Double { netDurum } // Mevcut kasa
+    var kasa: Double { netDurum }
 }
-import SwiftUI
 
+
+// MARK: - 2. ANA EKRAN VE YÖNLENDİRİCİ
+struct ContentView: View {
+    var body: some View {
+        TabView {
+            GenelBakisView()
+                .tabItem {
+                    Image(systemName: "folder.fill")
+                    Text("Genel Bakış")
+                }
+            
+            AyarlarView()
+                .tabItem {
+                    Image(systemName: "gearshape.fill")
+                    Text("Ayarlar")
+                }
+        }
+    }
+}
+
+
+// MARK: - 3. GENEL BAKIŞ EKRANI
 struct GenelBakisView: View {
     @StateObject var yonetici = FinansYonetici()
     @State private var seciliSekme: IslemTipi = .gider
@@ -42,11 +61,10 @@ struct GenelBakisView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Üst Kasa Bildirimi (Yeşil Alan)
+                // Üst Kasa Bildirimi
                 HStack {
-                    Image(systemName: "folder.fill")
-                        .foregroundColor(.white)
-                    Text("Kasa: ₺2.270,95") // Dinamik yapılabilir: \(yonetici.kasa)
+                    Image(systemName: "folder.fill").foregroundColor(.white)
+                    Text("Kasa: ₺\(String(format: "%.2f", yonetici.kasa))")
                         .font(.headline)
                         .foregroundColor(.white)
                     Spacer()
@@ -54,7 +72,7 @@ struct GenelBakisView: View {
                 .padding()
                 .background(Color.green)
                 
-                // Ay Seçici ve Özet Kartı
+                // Özet Kartı
                 VStack {
                     Button(action: {}) {
                         HStack {
@@ -65,25 +83,23 @@ struct GenelBakisView: View {
                         .padding(.top, 10)
                     }
                     
-                    // Özet Rakamları
                     HStack(alignment: .top) {
                         VStack {
                             Text("Gelirler").font(.caption).foregroundColor(.gray)
-                            Text("₺4.150,00").font(.subheadline).bold()
+                            Text("₺\(String(format: "%.2f", yonetici.toplamGelir))").font(.subheadline).bold()
                         }
                         Spacer()
                         VStack {
                             Text("Giderler").font(.caption).foregroundColor(.gray)
-                            Text("₺1.879,05").font(.subheadline).bold()
+                            Text("₺\(String(format: "%.2f", yonetici.toplamGider))").font(.subheadline).bold()
                         }
                         Spacer()
                         VStack {
                             Text("Net").font(.caption).foregroundColor(.gray)
-                            Text("₺2.270,95").font(.subheadline).bold().foregroundColor(.green)
+                            Text("₺\(String(format: "%.2f", yonetici.netDurum))").font(.subheadline).bold().foregroundColor(.green)
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 5)
+                    .padding(.horizontal).padding(.top, 5)
                     
                     Divider()
                     
@@ -105,7 +121,7 @@ struct GenelBakisView: View {
                 .background(Color.white)
                 .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
                 
-                // Sekmeler (Gelirler, Giderler, Alacaklar, Borçlar)
+                // Sekmeler
                 Picker("İşlem Tipi", selection: $seciliSekme) {
                     ForEach(IslemTipi.allCases, id: \.self) { tip in
                         Text(tip.rawValue).tag(tip)
@@ -114,7 +130,7 @@ struct GenelBakisView: View {
                 .pickerStyle(SegmentedPickerStyle())
                 .padding()
                 
-                // İşlem Listesi
+                // Liste
                 List {
                     ForEach(yonetici.islemler.filter { $0.tip == seciliSekme }) { islem in
                         IslemSatiri(islem: islem)
@@ -122,53 +138,44 @@ struct GenelBakisView: View {
                 }
                 .listStyle(PlainListStyle())
                 
-                // Alt Ekleme Butonları (Yeşil ve Kırmızı)
+                // Butonlar
                 HStack(spacing: 0) {
                     NavigationLink(destination: IslemEkleView(tip: .gelir)) {
                         Text("Gelir/Alacak Ekle")
                             .frame(maxWidth: .infinity, maxHeight: 50)
                             .background(Color.green)
-                            .foregroundColor(.white)
-                            .font(.headline)
+                            .foregroundColor(.white).font(.headline)
                     }
                     NavigationLink(destination: IslemEkleView(tip: .gider)) {
                         Text("Gider/Borç Ekle")
                             .frame(maxWidth: .infinity, maxHeight: 50)
                             .background(Color.red)
-                            .foregroundColor(.white)
-                            .font(.headline)
+                            .foregroundColor(.white).font(.headline)
                     }
                 }
             }
             .navigationBarTitle("Genel Bakış", displayMode: .inline)
-            .navigationBarItems(leading: Image(systemName: "line.horizontal.3"), trailing: Image(systemName: "arrow.right.arrow.left"))
         }
     }
 }
 
-// Listede görünen tekil satır görünümü
+// MARK: - 4. İŞLEM SATIRI GÖRÜNÜMÜ
 struct IslemSatiri: View {
     var islem: Islem
     
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
-                Text("15.07.2020") // Gerçekte: DateFormatter kullanılacak
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                Text("15.07.2020").font(.caption).foregroundColor(.gray)
                 if !islem.aciklama.isEmpty {
-                    Text("Not: \(islem.aciklama)")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
+                    Text("Not: \(islem.aciklama)").font(.caption2).foregroundColor(.gray)
                 }
             }
             Spacer()
-            Text(islem.kategori)
-                .font(.subheadline)
+            Text(islem.kategori).font(.subheadline)
             Spacer()
             VStack(alignment: .trailing) {
-                Text("₺\(String(format: "%.2f", islem.tutar))")
-                    .bold()
+                Text("₺\(String(format: "%.2f", islem.tutar))").bold()
                 HStack(spacing: 15) {
                     Image(systemName: "checkmark").foregroundColor(.green)
                     Image(systemName: "square.and.pencil").foregroundColor(.blue)
@@ -179,8 +186,8 @@ struct IslemSatiri: View {
         .padding(.vertical, 5)
     }
 }
-import SwiftUI
 
+// MARK: - 5. İŞLEM EKLEME EKRANI
 struct IslemEkleView: View {
     @State var tip: IslemTipi
     @State private var kategori: String = "Kategori seçiniz"
@@ -188,13 +195,11 @@ struct IslemEkleView: View {
     @State private var tutar: String = ""
     @State private var aciklama: String = ""
     @State private var tekrarla: Bool = false
-    
     @Environment(\.presentationMode) var presentationMode
     
     var body: some View {
         Form {
             Section {
-                // Gelir / Alacak - Gider / Borç Seçici
                 Picker("Tip", selection: $tip) {
                     if tip == .gelir || tip == .alacak {
                         Text("Gelir").tag(IslemTipi.gelir)
@@ -217,33 +222,26 @@ struct IslemEkleView: View {
                 HStack {
                     Text("Tutar")
                     Spacer()
-                    TextField("0,00", text: $tutar)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
+                    TextField("0,00", text: $tutar).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                 }
                 
                 HStack {
                     Text("Açıklama")
                     Spacer()
-                    TextField("İsteğe bağlı", text: $aciklama)
-                        .multilineTextAlignment(.trailing)
+                    TextField("İsteğe bağlı", text: $aciklama).multilineTextAlignment(.trailing)
                 }
                 
                 Toggle(isOn: $tekrarla) {
-                    Text("\(tip.rawValue.dropLast())i her ay aynı gün tekrarla")
-                        .foregroundColor(.gray)
+                    Text("\(tip.rawValue.dropLast())i her ay aynı gün tekrarla").foregroundColor(.gray)
                 }
             }
         }
         .navigationBarTitle("\(tip.rawValue.dropLast()) Ekle", displayMode: .inline)
-        .navigationBarItems(trailing: Button("Kaydet") {
-            // Veritabanına kaydetme kodu buraya gelecek
-            presentationMode.wrappedValue.dismiss()
-        })
+        .navigationBarItems(trailing: Button("Kaydet") { presentationMode.wrappedValue.dismiss() })
     }
 }
-import SwiftUI
 
+// MARK: - 6. AYARLAR VE RAPOR EKRANLARI
 struct AyarlarView: View {
     var body: some View {
         NavigationView {
@@ -260,9 +258,6 @@ struct AyarlarView: View {
                 NavigationLink(destination: YillikRaporView()) {
                     Label("Yıllık Gelir-Gider Raporu", systemImage: "chart.bar.fill")
                 }
-                NavigationLink(destination: Text("Web Sitesi")) {
-                    Label("Web Sitemizi Ziyaret Edin", systemImage: "magnifyingglass.circle")
-                }
             }
             .navigationBarTitle("Ayarlar", displayMode: .inline)
         }
@@ -273,7 +268,6 @@ struct YillikRaporView: View {
     var body: some View {
         List {
             Section(header: Text("2020 Gelir Gider Dökümü").foregroundColor(.blue).frame(maxWidth: .infinity, alignment: .center)) {
-                
                 HStack {
                     Text("Aylar").bold().frame(width: 80, alignment: .leading)
                     Text("Gelirler").bold().frame(maxWidth: .infinity, alignment: .trailing)
@@ -282,11 +276,8 @@ struct YillikRaporView: View {
                 }
                 .font(.caption)
                 
-                // Örnek bir ay (Temmuz)
                 HStack {
-                    Text("Temmuz")
-                        .frame(width: 80, alignment: .leading)
-                        .foregroundColor(.blue)
+                    Text("Temmuz").frame(width: 80, alignment: .leading).foregroundColor(.blue)
                     Text("₺4.150,00").frame(maxWidth: .infinity, alignment: .trailing)
                     Text("₺1.879,05").frame(maxWidth: .infinity, alignment: .trailing)
                     Text("₺2.270,95").frame(maxWidth: .infinity, alignment: .trailing).foregroundColor(.green)
