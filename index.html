@@ -1,291 +1,241 @@
-import SwiftUI
-import Foundation
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hesap Kitap - Gider Takibi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .bg-custom-blue { background-color: #4A708B; }
+        .bg-custom-green { background-color: #00A86B; }
+        .text-custom-blue { color: #1E90FF; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex justify-center items-start pt-4">
 
-// MARK: - 1. VERİ MODELLERİ
-enum IslemTipi: String, CaseIterable {
-    case gelir = "Gelirler"
-    case gider = "Giderler"
-    case alacak = "Alacaklar"
-    case borc = "Borçlar"
-}
+    <div class="w-full max-w-md bg-white shadow-2xl rounded-3xl overflow-hidden border border-gray-200 flex flex-col my-4" style="min-height: 800px;">
+        
+        <div class="bg-custom-blue text-white px-4 py-3 flex justify-between items-center shadow-md">
+            <button onclick="changeView('settings')" class="hover:opacity-80"><i class="fa-solid fa-bars text-lg"></i></button>
+            <h1 id="page-title" class="text-lg font-semibold">Genel Bakış</h1>
+            <button onclick="changeView('dashboard')" class="hover:opacity-80"><i class="fa-solid fa-house text-lg"></i></button>
+        </div>
 
-struct Islem: Identifiable {
-    let id = UUID()
-    var tip: IslemTipi
-    var kategori: String
-    var tarih: Date
-    var tutar: Double
-    var aciklama: String
-    var tekrarla: Bool = false
-}
+        <div id="main-content" class="flex-1 overflow-y-auto pb-20">
+            </div>
 
-class FinansYonetici: ObservableObject {
-    @Published var islemler: [Islem] = [
-        Islem(tip: .gider, kategori: "Telefon Faturası", tarih: Date(), tutar: 56.80, aciklama: ""),
-        Islem(tip: .alacak, kategori: "Bonus", tarih: Date(), tutar: 1000.00, aciklama: "Haziran satış bonusu"),
-        Islem(tip: .gider, kategori: "Market Alışverişi", tarih: Date(), tutar: 408.80, aciklama: "Çay, kahve vb.")
-    ]
-    
-    var toplamGelir: Double { islemler.filter { $0.tip == .gelir }.reduce(0) { $0 + $1.tutar } }
-    var toplamGider: Double { islemler.filter { $0.tip == .gider }.reduce(0) { $0 + $1.tutar } }
-    var netDurum: Double { toplamGelir - toplamGider }
-    var kasa: Double { netDurum }
-}
+    </div>
 
+    <script>
+        // TARAYICI HAFIZASINDAN VERİLERİ YÜKLE VEYA VARSA VARSAYILANLARI GETİR
+        let state = JSON.parse(localStorage.getItem('hesapKitapData')) || {
+            islemler: [
+                { id: 1, tip: 'gider', kategori: 'Ev Kirası', tarih: '2026-06-01', tutar: 1200.00, aciklama: '' },
+                { id: 2, tip: 'gider', kategori: 'Market Alışverişi', tarih: '2026-06-03', tutar: 408.80, aciklama: 'Çay, kahve vb.' },
+                { id: 3, tip: 'gider', kategori: 'Elektrik Faturası', tarih: '2026-06-05', tutar: 186.50, aciklama: '' },
+                { id: 4, tip: 'gelir', kategori: 'Maaş', tarih: '2026-06-01', tutar: 3500.00, aciklama: '' },
+                { id: 5, tip: 'gelir', kategori: 'Satış Primi', tarih: '2026-06-10', tutar: 650.00, aciklama: '' },
+                { id: 6, tip: 'alacak', kategori: 'Bonus', tarih: '2026-06-15', tutar: 1000.00, aciklama: 'Haziran satış bonusu' },
+                { id: 7, tip: 'borc', kategori: 'Telefon Faturası', tarih: '2026-06-11', tutar: 56.80, aciklama: '' }
+            ],
+            seciliSekme: 'gider',
+            currentView: 'dashboard'
+        };
 
-// MARK: - 2. ANA EKRAN VE YÖNLENDİRİCİ
-struct ContentView: View {
-    var body: some View {
-        TabView {
-            GenelBakisView()
-                .tabItem {
-                    Image(systemName: "folder.fill")
-                    Text("Genel Bakış")
-                }
+        function saveData() {
+            localStorage.setItem('hesapKitapData', JSON.stringify(state));
+        }
+
+        // FİNANSAL HESAPLAMALAR
+        function hesapla() {
+            let gelir = state.islemler.filter(i => i.tip === 'gelir').reduce((a, b) => a + b.tutar, 0);
+            let gider = state.islemler.filter(i => i.tip === 'gider').reduce((a, b) => a + b.tutar, 0);
+            let alacak = state.islemler.filter(i => i.tip === 'alacak').reduce((a, b) => a + b.tutar, 0);
+            let borc = state.islemler.filter(i => i.tip === 'borc').reduce((a, b) => a + b.tutar, 0);
+            let net = gelir - gider;
+            let kasa = net; // Ekran görüntüsündeki Kasa mantığı
+            return { gelir, gider, alacak, borc, net, kasa };
+        }
+
+        // EKRAN DEĞİŞTİRME YÖNETİCİSİ
+        function changeView(view, extraData = null) {
+            state.currentView = view;
+            const content = document.getElementById('main-content');
+            const title = document.getElementById('page-title');
+            const özet = hesapla();
+
+            if (view === 'dashboard') {
+                title.innerText = "Genel Bakış";
+                content.innerHTML = `
+                    <div class="bg-custom-green text-white px-4 py-3 flex items-center gap-2">
+                        <i class="fa-solid fa-folder-open"></i>
+                        <span class="font-semibold">Kasa: ₺${özet.kasa.toFixed(2)}</span>
+                    </div>
+
+                    <div class="bg-white p-4 shadow-sm border-b border-gray-200 text-center">
+                        <button class="text-custom-blue font-medium mb-3"><i class="fa-solid fa-calendar-days mr-1"></i> Bu Ay (Haziran 2026)</button>
+                        <div class="grid grid-cols-3 gap-2 text-sm text-gray-600 mb-2">
+                            <div><div>Gelirler</div><div class="font-bold text-black">₺${özet.gelir.toFixed(2)}</div></div>
+                            <div><div>Giderler</div><div class="font-bold text-black">₺${özet.gider.toFixed(2)}</div></div>
+                            <div><div>Net</div><div class="font-bold text-custom-green">₺${özet.net.toFixed(2)}</div></div>
+                        </div>
+                        <div class="border-t pt-2 grid grid-cols-2 text-sm text-gray-600">
+                            <div><div>Alacaklar</div><div class="font-bold text-black">₺${özet.alacak.toFixed(2)}</div></div>
+                            <div><div>Borçlar</div><div class="font-bold text-black">₺${özet.borc.toFixed(2)}</div></div>
+                        </div>
+                    </div>
+
+                    <div class="p-3">
+                        <div class="flex bg-gray-200 p-1 rounded-lg text-sm">
+                            <button onclick="setTab('gelir')" class="flex-1 py-1.5 rounded-md text-center ${state.seciliSekme === 'gelir' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">Gelirler</button>
+                            <button onclick="setTab('gider')" class="flex-1 py-1.5 rounded-md text-center ${state.seciliSekme === 'gider' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">Giderler</button>
+                            <button onclick="setTab('alacak')" class="flex-1 py-1.5 rounded-md text-center ${state.seciliSekme === 'alacak' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">Alacaklar</button>
+                            <button onclick="setTab('borc')" class="flex-1 py-1.5 rounded-md text-center ${state.seciliSekme === 'borc' ? 'bg-white shadow font-semibold' : 'text-gray-600'}">Borçlar</button>
+                        </div>
+                    </div>
+
+                    <div class="divide-y divide-gray-200 bg-white">
+                        ${renderList()}
+                    </div>
+
+                    <div class="fixed bottom-4 max-w-md w-full px-4 flex gap-0 left-1/2 transform -translate-x-1/2">
+                        <button onclick="changeView('add', 'gelir')" class="flex-1 bg-custom-green text-white py-3 font-semibold text-center rounded-l-xl shadow-lg">Gelir/Alacak Ekle</button>
+                        <button onclick="changeView('add', 'gider')" class="flex-1 bg-red-600 text-white py-3 font-semibold text-center rounded-r-xl shadow-lg">Gider/Borç Ekle</button>
+                    </div>
+                `;
+            } else if (view === 'add') {
+                let defaultTip = extraData;
+                title.innerText = defaultTip === 'gelir' ? "Gelir Ekle" : "Gider Ekle";
+                content.innerHTML = `
+                    <div class="p-4">
+                        <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tip Seçiniz</label>
+                                <select id="form-tip" class="w-full border p-2 rounded-lg bg-gray-50 text-sm">
+                                    ${defaultTip === 'gelir' ? '<option value="gelir">Gelir</option><option value="alacak">Alacak</option>' : '<option value="gider">Gider</option><option value="borc">Borç</option>'}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                                <input type="text" id="form-kategori" placeholder="Örn: Market, Fatura, Maaş" class="w-full border p-2 rounded-lg text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+                                <input type="date" id="form-tarih" value="${new Date().toISOString().split('T')[0]}" class="w-full border p-2 rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tutar (₺)</label>
+                                <input type="number" step="0.01" id="form-tutar" placeholder="0,00" class="w-full border p-2 rounded-lg text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+                                <input type="text" id="form-aciklama" placeholder="İsteğe bağlı notlar" class="w-full border p-2 rounded-lg text-sm">
+                            </div>
+                            <button onclick="kaydetIslem()" class="w-full bg-custom-blue text-white py-2.5 rounded-lg font-semibold text-sm shadow mt-2">Kaydet</button>
+                        </div>
+                    </div>
+                `;
+            } else if (view === 'settings') {
+                title.innerText = "Ayarlar";
+                content.innerHTML = `
+                    <div class="bg-white divide-y divide-gray-200 mt-4 border-y">
+                        <div onclick="changeView('yillik')" class="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <span class="text-sm font-medium"><i class="fa-solid fa-chart-bar text-amber-500 mr-2"></i> Yıllık Gelir-Gider Raporu</span>
+                            <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+                        </div>
+                        <div onclick="alert('Kategoriler yakında eklenecek.')" class="p-4 flex justify-between items-center cursor-pointer hover:bg-gray-50">
+                            <span class="text-sm font-medium"><i class="fa-solid fa-layer-group text-blue-500 mr-2"></i> Kategoriler</span>
+                            <i class="fa-solid fa-chevron-right text-gray-400 text-xs"></i>
+                        </div>
+                    </div>
+                `;
+            } else if (view === 'yillik') {
+                title.innerText = "Yıllık Raporlar";
+                content.innerHTML = `
+                    <div class="p-4">
+                        <h3 class="text-center font-bold text-custom-blue mb-4">2026 Gelir Gider Dökümü</h3>
+                        <table class="w-full bg-white rounded-xl shadow-sm border text-sm overflow-hidden">
+                            <thead class="bg-gray-50 text-gray-500 border-b">
+                                <tr>
+                                    <th class="p-2 text-left">Aylar</th>
+                                    <th class="p-2 text-right">Gelirler</th>
+                                    <th class="p-2 text-right">Giderler</th>
+                                    <th class="p-2 text-right">Net</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr>
+                                    <td class="p-2 text-custom-blue font-medium">Haziran</td>
+                                    <td class="p-2 text-right">₺${özet.gelir.toFixed(2)}</td>
+                                    <td class="p-2 text-right">₺${özet.gider.toFixed(2)}</td>
+                                    <td class="p-2 text-right text-custom-green font-bold">₺${özet.net.toFixed(2)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+
+        // SEKMEYE GÖRE LİSTE OLUŞTURMA
+        function renderList() {
+            let filtrelenmiş = state.islemler.filter(i => i.tip === state.seciliSekme);
+            if (filtrelenmiş.length === 0) return `<div class="p-8 text-center text-gray-400 text-sm">Kayıt bulunamadı.</div>`;
             
-            AyarlarView()
-                .tabItem {
-                    Image(systemName: "gearshape.fill")
-                    Text("Ayarlar")
-                }
+            return filtrelenmiş.map(islem => `
+                <div class="p-3 flex justify-between items-center text-sm">
+                    <div>
+                        <div class="text-xs text-gray-400">${islem.tarih.split('-').reverse().join('.')}</div>
+                        <div class="font-medium text-gray-800">${islem.kategori}</div>
+                        ${islem.aciklama ? `<div class="text-xs text-gray-500 italic">Not: ${islem.aciklama}</div>` : ''}
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-gray-900 mb-1">₺${islem.tutar.toFixed(2)}</div>
+                        <div class="flex gap-2 justify-end text-xs">
+                            <button onclick="silIslem(${islem.id})" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-circle-xmark text-base"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
-    }
-}
 
-
-// MARK: - 3. GENEL BAKIŞ EKRANI
-struct GenelBakisView: View {
-    @StateObject var yonetici = FinansYonetici()
-    @State private var seciliSekme: IslemTipi = .gider
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Üst Kasa Bildirimi
-                HStack {
-                    Image(systemName: "folder.fill").foregroundColor(.white)
-                    Text("Kasa: ₺\(String(format: "%.2f", yonetici.kasa))")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    Spacer()
-                }
-                .padding()
-                .background(Color.green)
-                
-                // Özet Kartı
-                VStack {
-                    Button(action: {}) {
-                        HStack {
-                            Image(systemName: "calendar")
-                            Text("Bu Ay (Temmuz 2020)")
-                        }
-                        .foregroundColor(.blue)
-                        .padding(.top, 10)
-                    }
-                    
-                    HStack(alignment: .top) {
-                        VStack {
-                            Text("Gelirler").font(.caption).foregroundColor(.gray)
-                            Text("₺\(String(format: "%.2f", yonetici.toplamGelir))").font(.subheadline).bold()
-                        }
-                        Spacer()
-                        VStack {
-                            Text("Giderler").font(.caption).foregroundColor(.gray)
-                            Text("₺\(String(format: "%.2f", yonetici.toplamGider))").font(.subheadline).bold()
-                        }
-                        Spacer()
-                        VStack {
-                            Text("Net").font(.caption).foregroundColor(.gray)
-                            Text("₺\(String(format: "%.2f", yonetici.netDurum))").font(.subheadline).bold().foregroundColor(.green)
-                        }
-                    }
-                    .padding(.horizontal).padding(.top, 5)
-                    
-                    Divider()
-                    
-                    HStack {
-                        Spacer()
-                        VStack {
-                            Text("Alacaklar").font(.caption).foregroundColor(.gray)
-                            Text("₺1.000,00").font(.subheadline).bold()
-                        }
-                        Spacer()
-                        VStack {
-                            Text("Borçlar").font(.caption).foregroundColor(.gray)
-                            Text("₺56,80").font(.subheadline).bold()
-                        }
-                        Spacer()
-                    }
-                    .padding(.bottom, 10)
-                }
-                .background(Color.white)
-                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 5)
-                
-                // Sekmeler
-                Picker("İşlem Tipi", selection: $seciliSekme) {
-                    ForEach(IslemTipi.allCases, id: \.self) { tip in
-                        Text(tip.rawValue).tag(tip)
-                    }
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding()
-                
-                // Liste
-                List {
-                    ForEach(yonetici.islemler.filter { $0.tip == seciliSekme }) { islem in
-                        IslemSatiri(islem: islem)
-                    }
-                }
-                .listStyle(PlainListStyle())
-                
-                // Butonlar
-                HStack(spacing: 0) {
-                    NavigationLink(destination: IslemEkleView(tip: .gelir)) {
-                        Text("Gelir/Alacak Ekle")
-                            .frame(maxWidth: .infinity, maxHeight: 50)
-                            .background(Color.green)
-                            .foregroundColor(.white).font(.headline)
-                    }
-                    NavigationLink(destination: IslemEkleView(tip: .gider)) {
-                        Text("Gider/Borç Ekle")
-                            .frame(maxWidth: .infinity, maxHeight: 50)
-                            .background(Color.red)
-                            .foregroundColor(.white).font(.headline)
-                    }
-                }
-            }
-            .navigationBarTitle("Genel Bakış", displayMode: .inline)
+        function setTab(tab) {
+            state.seciliSekme = tab;
+            changeView('dashboard');
         }
-    }
-}
 
-// MARK: - 4. İŞLEM SATIRI GÖRÜNÜMÜ
-struct IslemSatiri: View {
-    var islem: Islem
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text("15.07.2020").font(.caption).foregroundColor(.gray)
-                if !islem.aciklama.isEmpty {
-                    Text("Not: \(islem.aciklama)").font(.caption2).foregroundColor(.gray)
-                }
+        // YENİ İŞLEM KAYDETME
+        function kaydetIslem() {
+            let tip = document.getElementById('form-tip').value;
+            let kategori = document.getElementById('form-kategori').value.trim();
+            let tarih = document.getElementById('form-tarih').value;
+            let tutar = parseFloat(document.getElementById('form-tutar').value);
+            let aciklama = document.getElementById('form-aciklama').value.trim();
+
+            if(!kategori || isNaN(tutar)) {
+                alert("Lütfen kategori ve tutar alanlarını doldurun.");
+                return;
             }
-            Spacer()
-            Text(islem.kategori).font(.subheadline)
-            Spacer()
-            VStack(alignment: .trailing) {
-                Text("₺\(String(format: "%.2f", islem.tutar))").bold()
-                HStack(spacing: 15) {
-                    Image(systemName: "checkmark").foregroundColor(.green)
-                    Image(systemName: "square.and.pencil").foregroundColor(.blue)
-                    Image(systemName: "xmark.circle.fill").foregroundColor(.red)
-                }
+
+            state.islemler.push({ id: Date.now(), tip, kategori, tarih, tutar, aciklama });
+            saveData();
+            state.seciliSekme = (tip === 'gelir' || tip === 'alacak') ? 'gelir' : 'gider';
+            changeView('dashboard');
+        }
+
+        // İŞLEM SİLME
+        function silIslem(id) {
+            if(confirm('Bu işlemi silmek istediğinize emin misiniz?')) {
+                state.islemler = state.islemler.filter(i => i.id !== id);
+                saveData();
+                changeView('dashboard');
             }
         }
-        .padding(.vertical, 5)
-    }
-}
 
-// MARK: - 5. İŞLEM EKLEME EKRANI
-struct IslemEkleView: View {
-    @State var tip: IslemTipi
-    @State private var kategori: String = "Kategori seçiniz"
-    @State private var tarih = Date()
-    @State private var tutar: String = ""
-    @State private var aciklama: String = ""
-    @State private var tekrarla: Bool = false
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        Form {
-            Section {
-                Picker("Tip", selection: $tip) {
-                    if tip == .gelir || tip == .alacak {
-                        Text("Gelir").tag(IslemTipi.gelir)
-                        Text("Alacak").tag(IslemTipi.alacak)
-                    } else {
-                        Text("Gider").tag(IslemTipi.gider)
-                        Text("Borç").tag(IslemTipi.borc)
-                    }
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                
-                HStack {
-                    Text("Kategori")
-                    Spacer()
-                    Text(kategori).foregroundColor(.blue)
-                }
-                
-                DatePicker("Tarih", selection: $tarih, displayedComponents: .date)
-                
-                HStack {
-                    Text("Tutar")
-                    Spacer()
-                    TextField("0,00", text: $tutar).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
-                }
-                
-                HStack {
-                    Text("Açıklama")
-                    Spacer()
-                    TextField("İsteğe bağlı", text: $aciklama).multilineTextAlignment(.trailing)
-                }
-                
-                Toggle(isOn: $tekrarla) {
-                    Text("\(tip.rawValue.dropLast())i her ay aynı gün tekrarla").foregroundColor(.gray)
-                }
-            }
-        }
-        .navigationBarTitle("\(tip.rawValue.dropLast()) Ekle", displayMode: .inline)
-        .navigationBarItems(trailing: Button("Kaydet") { presentationMode.wrappedValue.dismiss() })
-    }
-}
-
-// MARK: - 6. AYARLAR VE RAPOR EKRANLARI
-struct AyarlarView: View {
-    var body: some View {
-        NavigationView {
-            List {
-                NavigationLink(destination: Text("Kategoriler Ekranı")) {
-                    Label("Kategoriler", systemImage: "square.stack.3d.up.fill")
-                }
-                NavigationLink(destination: Text("Tüm İşlemler")) {
-                    Label("Tüm Gelir ve Giderler", systemImage: "hand.holding.usd.fill")
-                }
-                NavigationLink(destination: Text("Tüm Alacak ve Borçlar")) {
-                    Label("Tüm Alacak ve Borçlar", systemImage: "arrow.left.arrow.right.circle.fill")
-                }
-                NavigationLink(destination: YillikRaporView()) {
-                    Label("Yıllık Gelir-Gider Raporu", systemImage: "chart.bar.fill")
-                }
-            }
-            .navigationBarTitle("Ayarlar", displayMode: .inline)
-        }
-    }
-}
-
-struct YillikRaporView: View {
-    var body: some View {
-        List {
-            Section(header: Text("2020 Gelir Gider Dökümü").foregroundColor(.blue).frame(maxWidth: .infinity, alignment: .center)) {
-                HStack {
-                    Text("Aylar").bold().frame(width: 80, alignment: .leading)
-                    Text("Gelirler").bold().frame(maxWidth: .infinity, alignment: .trailing)
-                    Text("Giderler").bold().frame(maxWidth: .infinity, alignment: .trailing)
-                    Text("Net").bold().frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .font(.caption)
-                
-                HStack {
-                    Text("Temmuz").frame(width: 80, alignment: .leading).foregroundColor(.blue)
-                    Text("₺4.150,00").frame(maxWidth: .infinity, alignment: .trailing)
-                    Text("₺1.879,05").frame(maxWidth: .infinity, alignment: .trailing)
-                    Text("₺2.270,95").frame(maxWidth: .infinity, alignment: .trailing).foregroundColor(.green)
-                }
-                .font(.subheadline)
-            }
-        }
-        .listStyle(GroupedListStyle())
-        .navigationBarTitle("Yıllık Raporlar", displayMode: .inline)
-    }
-}
+        // İlk açılışta ana ekranı yükle
+        changeView('dashboard');
+    </script>
+</body>
+</html>
